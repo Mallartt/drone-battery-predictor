@@ -1,0 +1,52 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Режимы полета дрона</title>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+<body>
+<header>
+  <div class="container header-bar">
+    <a href="/" class="home-button">Домой</a>
+  </div>
+</header>
+
+<main class="container">
+  <h1>Режимы полета дрона</h1>
+
+  <div class="services-search">
+    <form method="get">
+      <input type="text" name="search" placeholder="Поиск режимов..." value="{{ search_query }}">
+      <button type="submit">Найти</button>
+    </form>
+  </div>
+
+  <div class="services-wrapper">
+    <div class="services-grid">
+      {% for service in services %}
+      <div class="service-card">
+        <div class="card-image-wrap">
+          <img src="{{ minio_base_url }}/{{ service.image }}" alt="{{ service.name }}">
+        </div>
+        <div class="card-content">
+          <p class="service-title">{{ service.name }}</p>
+          <p class="price">{{ service.price }}</p>
+          <p class="price">Множитель мощности: {{ service.power_multiplier }}</p>
+          <div class="card-buttons">
+            <a href="/service/{{ service.id }}/" class="details-btn">Подробнее</a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</main>
+
+<a href="/order/?id={{ order_id }}" class="fixed-order-btn">
+    Перейти к заявке{% if order_items_count > 0 %} ({{ order_items_count }}){% endif %}
+</a>
+</body>
+</html>

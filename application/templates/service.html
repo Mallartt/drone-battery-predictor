@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ service.name }} - Детали режима</title>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+<body>
+<header>
+  <div class="container header-bar">
+    <a href="/" class="home-button">Домой</a>
+  </div>
+</header>
+
+<main class="container">
+  <div>
+    <a href="/" class="back-btn small-top">← Назад</a>
+
+    <div class="detail-card">
+      <div class="detail-image">
+        <img src="{{ minio_base_url }}/{{ service.image }}" alt="{{ service.name }}">
+      </div>
+      <div class="service-info">
+        <h1>{{ service.name }}</h1>
+        <p class="price">{{ service.price }}</p>
+        <p class="price">Множитель мощности: {{ service.power_multiplier }}</p>
+        <p class="description">{{ service.description }}</p>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>
