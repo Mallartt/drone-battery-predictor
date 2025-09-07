@@ -4,7 +4,6 @@ import math
 from .static_data import services_data, order_data_template
 import requests
 
-# --- Картинка по умолчанию ---
 default_img = "img.jpg"
 MINIO_BASE_URL = "http://localhost:9000/images"
 TRASH = f"{MINIO_BASE_URL}/icons8-trash-50.jpg"

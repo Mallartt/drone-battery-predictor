@@ -6,7 +6,7 @@ services_data = [
         'description': 'Режим стабильного удержания позиции дрона в воздухе',
         'discharge_rate': 15,
         'image': 'hovering.jpg',
-        'price': 'Базовый режим',
+        'category': 'Базовый режим',
         'power_multiplier': 0.6
     },
     {
@@ -15,7 +15,7 @@ services_data = [
         'description': 'Режим с активным перемещением и сменой высоты',
         'discharge_rate': 25,
         'image': 'maneuvering.jpg',
-        'price': 'Профессиональный режим',
+        'category': 'Профессиональный режим',
         'power_multiplier': 1.0
     },
     {
@@ -24,7 +24,7 @@ services_data = [
         'description': 'Режим полета с активной видеозаписью в 4K',
         'discharge_rate': 35,
         'image': 'recording.jpg',
-        'price': 'Премиум режим',
+        'category': 'Премиум режим',
         'power_multiplier': 1.2
     },
     {
@@ -33,7 +33,7 @@ services_data = [
         'description': 'Режим транспортировки небольших посылок или медикаментов',
         'discharge_rate': 40,
         'image': 'delivery.jpg',
-        'price': 'Логистический режим',
+        'category': 'Логистический режим',
         'power_multiplier': 1.5
     },
     {
@@ -42,7 +42,7 @@ services_data = [
         'description': 'Режим с использованием тепловизора для поиска объектов и мониторинга',
         'discharge_rate': 30,
         'image': 'thermal.jpg',
-        'price': 'Специализированный режим',
+        'category': 'Специализированный режим',
         'power_multiplier': 1.3
     }
 ]

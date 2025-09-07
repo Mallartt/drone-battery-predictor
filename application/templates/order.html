@@ -17,7 +17,6 @@
 <main class="container order-page">
   <h1>Моя заявка на расчет времени полета</h1>  
 
-  <!-- Параметры дрона -->
   <aside class="drone-menu compact-block">
     <img src="{{ minio_base_url }}/{{ dron_img }}" alt="{{ service.name }}">
     {% for param in drone_parameters %}
@@ -29,8 +28,6 @@
     <button id="calc-btn" class="calc-button centered-btn">Спрогнозировать время (мин)</button>
   </aside>
 
-  <!-- Карточки заказа -->
-  <!-- Карточки заказа -->
   <section class="order-items-col">
     {% for item in order_items %}
     <div class="order-item drone-card">
