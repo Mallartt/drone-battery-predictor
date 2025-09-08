@@ -4,45 +4,35 @@ services_data = [
         'id': 1,
         'name': 'Зависание',
         'description': 'Режим стабильного удержания позиции дрона в воздухе',
-        'discharge_rate': 15,
-        'image': 'hovering.jpg',
-        'category': 'Базовый режим',
+        'image': 'http://localhost:9000/images/hovering.jpg',
         'power_multiplier': 0.6
     },
     {
         'id': 2,
         'name': 'Активное маневрирование',
         'description': 'Режим с активным перемещением и сменой высоты',
-        'discharge_rate': 25,
-        'image': 'maneuvering.jpg',
-        'category': 'Профессиональный режим',
+        'image': 'http://localhost:9000/images/maneuvering.jpg',
         'power_multiplier': 1.0
     },
     {
         'id': 3,
         'name': 'С видеозаписью',
         'description': 'Режим полета с активной видеозаписью в 4K',
-        'discharge_rate': 35,
-        'image': 'recording.jpg',
-        'category': 'Премиум режим',
+        'image': 'http://localhost:9000/images/recording.jpg',
         'power_multiplier': 1.2
     },
     {
         'id': 4,
         'name': 'Доставка груза',
         'description': 'Режим транспортировки небольших посылок или медикаментов',
-        'discharge_rate': 40,
-        'image': 'delivery.jpg',
-        'category': 'Логистический режим',
+        'image': 'http://localhost:9000/images/delivery.jpg',
         'power_multiplier': 1.5
     },
     {
         'id': 5,
         'name': 'Тепловизионная съемка',
         'description': 'Режим с использованием тепловизора для поиска объектов и мониторинга',
-        'discharge_rate': 30,
-        'image': 'thermal.jpg',
-        'category': 'Специализированный режим',
+        'image': 'http://localhost:9000/images/thermal.jpg',
         'power_multiplier': 1.3
     }
 ]

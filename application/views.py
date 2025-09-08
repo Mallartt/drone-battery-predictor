@@ -4,21 +4,19 @@ import math
 from .static_data import services_data, order_data_template
 import requests
 
-default_img = "img.jpg"
-MINIO_BASE_URL = "http://localhost:9000/images"
-TRASH = f"{MINIO_BASE_URL}/icons8-trash-50.jpg"
-dron_img = 'dron.jpg'
+default_img = "http://localhost:9000/images/img.jpg"
+TRASH = f"http://localhost:9000/images/icons8-trash-50.jpg"
+dron_img = 'http://localhost:9000/images/dron.jpg'
 
 
 
 def ensure_image(data: dict, key: str = "image"):
-    """Если нет картинки или она недоступна в MinIO, подставляем default_img"""
     filename = data.get(key)
     if not filename:
         data[key] = default_img
         return data
     
-    url = f"{MINIO_BASE_URL}/{filename}"
+    url = f"{filename}"
     try:
         response = requests.head(url, timeout=2)
         if response.status_code != 200:
@@ -39,7 +37,6 @@ def services_list(request):
     'order_items_count': len(order_data_template['items']),
     'search_query': search_query,
     'order_id': order_data_template.get('id'),
-    'minio_base_url': MINIO_BASE_URL
 })
 
 
@@ -53,7 +50,6 @@ def service_detail(request, id):
     return render(request, 'service.html', {
         'service': service,
         'order_items_count': len(order_data_template['items']),
-        'minio_base_url': MINIO_BASE_URL
     })
 
 
@@ -100,6 +96,5 @@ def order_detail(request):
         'drone_parameters': drone_parameters,
         'order_items_count': len(order_items),
         'dron_img': dron_img,
-        'minio_base_url': MINIO_BASE_URL,
         'trash': TRASH
     })
