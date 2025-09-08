@@ -329,6 +329,7 @@ main h1 {
   align-items: center;
   justify-content: center;
   min-width: 80px;
+  height: 47.2px;
 }
 
 .services-wrapper {
@@ -378,3 +379,27 @@ main.container.order-page {
   margin: 0px 20px 10px 20px;
 }
 
+
+
+.delete-order-btn {
+  position: fixed;
+  left: 20px;  
+  bottom: 20px;      
+  border: 2px solid #dc3545;
+  color: #dc3545;
+  background-color: var(--background);
+  padding: 12px 18px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  z-index: 9999; 
+  transition: 0.2s;
+}
+
+.delete-order-btn:hover {
+  background-color: #c62828; 
+  color: #ffffff;
+}
+.inline {
+  display:inline;
+}

@@ -6,9 +6,8 @@ from django.db import connection, transaction
 from .models import Service, Order, OrderItem
 
 
-MINIO_BASE_URL = "http://localhost:9000/images"
-TRASH = f"{MINIO_BASE_URL}/icons8-trash-50.jpg"
-dron_img = "dron.jpg"
+TRASH = "http://localhost:9000/images/icons8-trash-50.jpg"
+dron_img = "http://localhost:9000/images/dron.jpg"
 
 
 def services_list(request):
@@ -36,7 +35,6 @@ def services_list(request):
             "order_items_count": order_items_count,
             "order_id": order.id if order else None,
             "search_query": search_query,
-            "minio_base_url": MINIO_BASE_URL,
         },
     )
 
@@ -58,49 +56,48 @@ def service_detail(request, id):
         {
             "service": service,
             "order_items_count": order_items_count,
-            "minio_base_url": MINIO_BASE_URL,
         },
     )
 
 
 @login_required
-def order_detail(request):
-    # Находим заявку в статусе черновика
-    order = Order.objects.filter(
-        creator=request.user, status=Order.OrderStatus.DRAFT
-    ).first()
+def order_detail(request, order_id):
+    # Находим заявку по ID и пользователю
+    order = get_object_or_404(Order, id=order_id, creator=request.user)
 
-    if not order or order.items.count() == 0:
+    if order.status != Order.OrderStatus.DRAFT or order.items.count() == 0:
         return HttpResponse("Заявка пуста", status=404)
 
-    # Получаем все услуги внутри заявки
     order_items = order.items.select_related("service")
 
-    # Собираем параметры для отображения
+    # Собираем параметры дрона через verbose_name
     drone_parameters = []
-    for item in order_items:
+    drone_fields = [
+        "drone_weight",
+        "cargo_weight",
+        "battery_capacity",
+        "battery_voltage",
+        "efficiency",
+        "battery_remaining",
+    ]
+
+    for field_name in drone_fields:
+        field = OrderItem._meta.get_field(field_name)
+        value = getattr(order, field_name, None)
         drone_parameters.append({
-            "service_name": item.service.name,
-            "drone_weight": item.drone_weight,
-            "cargo_weight": item.cargo_weight,
-            "battery_capacity": item.battery_capacity,
-            "battery_voltage": item.battery_voltage,
-            "efficiency": item.efficiency,
-            "battery_remaining": item.battery_remaining,
-            "runtime": item.runtime,
-            "description": item.description,
+            "label": field.verbose_name,
+            "value": value if value is not None else 0
         })
 
     return render(
         request,
         "order.html",
         {
-            "order": order,                # сама заявка (Order)
-            "order_items": order_items,    # услуги в заявке (OrderItem)
+            "order": order,
+            "order_items": order_items,
             "drone_parameters": drone_parameters,
             "order_items_count": order_items.count(),
             "dron_img": dron_img,
-            "minio_base_url": MINIO_BASE_URL,
             "trash": TRASH,
         },
     )
@@ -125,7 +122,7 @@ def add_to_order(request, service_id):
         # Если уже есть — можно обновить параметры
         item.save()
 
-    return redirect("order_detail")
+    return redirect("services_list")
 
 
 # --- Логическое удаление заявки (POST через SQL UPDATE) ---

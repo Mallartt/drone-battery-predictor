@@ -5,9 +5,7 @@ from django.contrib.auth.models import User  # встроенная таблиц
 class Service(models.Model):
     name = models.CharField(max_length=255, verbose_name='Название')
     description = models.TextField(verbose_name='Описание')
-    discharge_rate = models.IntegerField(verbose_name='Расход энергии')
     image = models.CharField(max_length=255, null=True, blank=True, verbose_name='Изображение')
-    category = models.CharField(max_length=255, verbose_name='Ценовая категория')
     power_multiplier = models.FloatField(verbose_name='Множитель мощности')
     is_active = models.BooleanField(default=True)
 
@@ -23,7 +21,7 @@ class Order(models.Model):
         COMPLETED = "COMPLETED", "Завершён"
         REJECTED = "REJECTED", "Отклонён"
 
-    creator = models.ForeignKey(User, on_delete=models.CASCADE, default=1)
+    creator = models.ForeignKey(User, on_delete=models.PROTECT, default=1)
     moderator = models.ForeignKey(User, on_delete=models.PROTECT, related_name="orders_moderated", null=True, blank=True)
 
     status = models.CharField(
@@ -43,12 +41,11 @@ class Order(models.Model):
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="items")
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="orders")
-    description = models.TextField(blank=True, null=True, verbose_name="Описание услуги в заявке")
-    runtime = models.IntegerField(blank=True, null=True, verbose_name="Расчётное время (мин)")
+    runtime = models.FloatField(blank=True, null=True, verbose_name="Расчётное время (мин)")
 
     drone_weight = models.FloatField(blank=True, null=True, verbose_name="Масса дрона (кг)")
     cargo_weight = models.FloatField(blank=True, null=True, verbose_name="Масса груза (кг)")
-    battery_capacity = models.IntegerField(blank=True, null=True, verbose_name="Ёмкость аккумулятора (mAh)")
+    battery_capacity = models.FloatField(blank=True, null=True, verbose_name="Ёмкость аккумулятора (mAh)")
     battery_voltage = models.FloatField(blank=True, null=True, verbose_name="Напряжение батареи (V)")
     efficiency = models.FloatField(blank=True, null=True, verbose_name="КПД")
     battery_remaining = models.FloatField(blank=True, null=True, verbose_name="Остаток заряда (%)")
