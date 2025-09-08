@@ -3,6 +3,7 @@ from django.http import HttpResponse
 import math
 from .static_data import services_data, order_data_template
 import requests
+from django.http import HttpResponseNotFound
 
 default_img = "http://localhost:9000/images/img.jpg"
 TRASH = f"http://localhost:9000/images/icons8-trash-50.jpg"
@@ -53,7 +54,10 @@ def service_detail(request, id):
     })
 
 
-def order_detail(request):
+def order_detail(request, order_id):
+    if order_id != order_data_template['id']:
+        return HttpResponseNotFound("Заявка не найдена")
+
     order_data = order_data_template.copy()
     
     order_items = []

@@ -45,8 +45,9 @@
   </div>
 </main>
 
-<a href="/order/?id={{ order_id }}" class="fixed-order-btn">
+<a href="/order/{{ order_id }}/" class="fixed-order-btn">
     Перейти к заявке{% if order_items_count > 0 %} ({{ order_items_count }}){% endif %}
 </a>
+
 </body>
 </html>

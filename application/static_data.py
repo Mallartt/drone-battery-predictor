@@ -50,6 +50,5 @@ order_data_template = {
         {'label': 'Напряжение батареи V', 'value': 11.1},
         {'label': 'КПД', 'value': 0.8},
         {'label': 'Остаток заряда (%)', 'value': 85}
-    ],
-    'result': '—'
+    ]
 }
