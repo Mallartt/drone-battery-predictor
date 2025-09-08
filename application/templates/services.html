@@ -33,7 +33,7 @@
         </div>
         <div class="card-content">
           <p class="service-title">{{ service.name }}</p>
-          <p class="category">{{ service.category }}</p>
+          <p class="category">{{ service.description }}</p>
           <p class="category">Множитель мощности: {{ service.power_multiplier }}</p>
           <div class="card-buttons">
             <a href="/service/{{ service.id }}/" class="details-btn">Подробнее</a>
@@ -53,7 +53,12 @@
 <a href="{% url 'order_detail' order_id %}" class="fixed-order-btn">
     Перейти к заявке ({{ order_items_count }})
 </a>
+{% else %}
+<a href="#" class="fixed-order-btn disabled-btn">
+    Перейти к заявке
+</a>
 {% endif %}
+
 
 </body>
 </html>

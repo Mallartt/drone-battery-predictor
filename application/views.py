@@ -65,9 +65,6 @@ def order_detail(request, order_id):
     # Находим заявку по ID и пользователю
     order = get_object_or_404(Order, id=order_id, creator=request.user)
 
-    if order.status != Order.OrderStatus.DRAFT or order.items.count() == 0:
-        return HttpResponse("Заявка пуста", status=404)
-
     order_items = order.items.select_related("service")
 
     # Собираем параметры дрона через verbose_name
@@ -101,6 +98,7 @@ def order_detail(request, order_id):
             "trash": TRASH,
         },
     )
+
 
 
 # --- Добавить услугу в заявку (POST через ORM) ---
