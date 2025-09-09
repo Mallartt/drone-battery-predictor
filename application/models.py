@@ -33,6 +33,12 @@ class Order(models.Model):
     creation_datetime = models.DateTimeField(auto_now_add=True)
     formation_datetime = models.DateTimeField(blank=True, null=True)
     completion_datetime = models.DateTimeField(blank=True, null=True)
+    drone_weight = models.FloatField(blank=True, null=True, verbose_name="Масса дрона (кг)")
+    cargo_weight = models.FloatField(blank=True, null=True, verbose_name="Масса груза (кг)")
+    battery_capacity = models.FloatField(blank=True, null=True, verbose_name="Ёмкость аккумулятора (mAh)")
+    battery_voltage = models.FloatField(blank=True, null=True, verbose_name="Напряжение батареи (V)")
+    efficiency = models.FloatField(blank=True, null=True, verbose_name="КПД")
+    battery_remaining = models.FloatField(blank=True, null=True, verbose_name="Остаток заряда (%)")
 
     def __str__(self):
         return f"Заявка № {self.id} ({self.status})"
@@ -43,13 +49,7 @@ class OrderItem(models.Model):
     service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="orders")
     runtime = models.FloatField(blank=True, null=True, verbose_name="Расчётное время (мин)")
 
-    drone_weight = models.FloatField(blank=True, null=True, verbose_name="Масса дрона (кг)")
-    cargo_weight = models.FloatField(blank=True, null=True, verbose_name="Масса груза (кг)")
-    battery_capacity = models.FloatField(blank=True, null=True, verbose_name="Ёмкость аккумулятора (mAh)")
-    battery_voltage = models.FloatField(blank=True, null=True, verbose_name="Напряжение батареи (V)")
-    efficiency = models.FloatField(blank=True, null=True, verbose_name="КПД")
-    battery_remaining = models.FloatField(blank=True, null=True, verbose_name="Остаток заряда (%)")
-
+    
     def __str__(self):
         return f"{self.service.name} в заявке № {self.order.id}"
 
