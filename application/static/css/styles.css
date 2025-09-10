@@ -43,7 +43,6 @@ body {
   background: var(--background);
 }
 
-/* --- Шапка --- */
 header {
   background: var(--header);
   color: var(--header-text);
@@ -69,14 +68,12 @@ header + main {
 }
 
 
-/* --- Заголовки --- */
 main h1 {
   text-align: center;
   margin: 24px 0 16px;
   font-size: 22px;
 }
 
-/* --- Поиск --- */
 .services-search {
   display: flex;
   justify-content: center;
@@ -115,7 +112,6 @@ main h1 {
 
 
 
-/* --- Карточки --- */
 .service-card {
   background: var(--block);
   border: 1px solid var(--border);
@@ -189,7 +185,6 @@ main h1 {
 .right-btn { margin-left: auto; }
 .small-btn { font-size: 0.85rem; padding: 6px 12px; }
 
-/* --- Детали услуги --- */
 .detail-card {
   display: flex;
   flex-wrap: wrap;
@@ -230,7 +225,6 @@ main h1 {
   margin-bottom: 8px;
 }
 
-/* --- Заявка --- */
 .compact-block {
   background: var(--block);
   border: 1px solid var(--border);
