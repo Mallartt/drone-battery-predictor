@@ -1,3 +1,4 @@
+<!--drone_services.html-->
 {% load static %}
 <!DOCTYPE html>
 <html lang="ru">
@@ -10,16 +11,21 @@
 <body>
 <header>
   <div class="container header-bar">
-    <a href="/" class="home-button">Домой</a>
+    <a href="/drone_services" class="home-button">Домой</a>
   </div>
 </header>
-
+<a href="/drone_battery_order/{{ order_id }}/" class="order-icon-btn">
+  <img src="{{ drone_order }}" alt="Заявка">
+  {% if order_items_count > 0 %}
+    <span class="order-counter">{{ order_items_count }}</span>
+  {% endif %}
+</a>
 <main class="container">
   <h1>Режимы полета дрона</h1>
 
   <div class="services-search">
     <form method="get">
-      <input type="text" name="search" placeholder="Поиск режимов..." value="{{ search_query }}">
+      <input type="text" name="drone_services_search" placeholder="Поиск режима полета..." value="{{ search_query }}">
       <button type="submit">Найти</button>
     </form>
   </div>
@@ -36,7 +42,7 @@
           <!--<p class="category">{{ service.description }}</p>-->
           <p class="category">Множитель мощности: {{ service.power_multiplier }}</p>
           <div class="card-buttons">
-            <a href="/service/{{ service.id }}/" class="details-btn">Подробнее</a>
+            <a href="/drone_service/{{ service.id }}/" class="details-btn">Подробнее</a>
           </div>
         </div>
       </div>
@@ -45,9 +51,7 @@
   </div>  
 </main>
 
-<a href="/order/{{ order_id }}/" class="fixed-order-btn">
-    Перейти к заявке{% if order_items_count > 0 %} ({{ order_items_count }}){% endif %}
-</a>
+
 
 </body>
 </html>

@@ -10,7 +10,7 @@
 <body>
 <header>
   <div class="container header-bar">
-    <a href="/" class="home-button">Домой</a>
+    <a href="/drone_services" class="home-button">Домой</a>
   </div>
 </header>
 
@@ -18,14 +18,14 @@
   <h1>Моя заявка на расчет времени полета</h1>  
 
   <aside class="drone-menu compact-block">
-    <img src="{{ dron_img }}" alt="{{ service.name }}">
-    {% for param in drone_parameters %}
-      <div class="drone-params-row">
-        <span>{{ param.label }}</span>
-        <input type="number" class="no-arrows" value="{{ param.value }}" />
-      </div>
-    {% endfor %}
-    <!--<button id="calc-btn" class="calc-button centered-btn">Спрогнозировать время (мин)</button>--->
+    <div class="drone-params-grid">
+      {% for label, value in drone_parameters %}
+        <div class="drone-params-cell">
+          <span>{{ label }}</span>
+          <input type="number" value="{{ value }}">
+        </div>
+      {% endfor %}
+    </div>
   </aside>
 
   <section class="order-items-col">
@@ -34,15 +34,21 @@
       <img src="{{ item.service.image }}" alt="{{ item.service.name }}">
       <div class="item-details">
         <p>{{ item.service.name }}</p>
-        <p>{{ item.description }}</p>
-        <p>Множитель мощности: {{ item.service.power_multiplier }}</p>
+        <label>
+          Множитель мощности: {{ item.service.power_multiplier }}
+        </label>
+        <label>
+          Коэф. ветра:
+          <input type="number" value="{{ item.service.wind_coeff }}">
+        </label>
+        <label>
+          Коэф. дождя:
+          <input type="number" value="{{ item.service.rain_coeff }}">
+        </label>
       </div>
       <div class="runtime-block">
         Время: {{ item.runtime }} мин
       </div>
-      <!--<button class="trash-icon" title="Удалить">
-        <img src="{{trash}}" alt="Удалить" />
-      </button>--->
     </div>
     {% endfor %}
   </section>
