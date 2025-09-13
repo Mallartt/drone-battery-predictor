@@ -10,16 +10,27 @@
 <body>
 <header>
   <div class="container header-bar">
-    <a href="/" class="home-button">Домой</a>
+    <a href="/drone_services" class="home-button">Домой</a>
   </div>
 </header>
+
+{% if order_items_count > 0 %}
+  <a href="/drone_battery_order/{{ order_id }}/" class="order-icon-btn">
+    <img src="{{ drone_order }}" alt="Заявка">
+    <span class="order-counter">{{ order_items_count }}</span>
+  </a>
+{% else %}
+  <div class="order-icon-btn disabled">
+    <img src="{{ drone_order }}" alt="Заявка">
+  </div>
+{% endif %}
 
 <main class="container">
   <h1>Режимы полета дрона</h1>
 
   <div class="services-search">
     <form method="get">
-      <input type="text" name="search" placeholder="Поиск режимов..." value="{{ search_query }}">
+      <input type="text" name="drone_services_search" placeholder="Поиск режима полета..." value="{{ search_query }}">
       <button type="submit">Найти</button>
     </form>
   </div>
@@ -35,30 +46,18 @@
           <p class="service-title">{{ service.name }}</p>
           <p class="category">Множитель мощности: {{ service.power_multiplier }}</p>
           <div class="card-buttons">
-            <a href="{% url 'service_detail' service.id %}" class="details-btn">Подробнее</a>
-            <form class="inline" method="post" action="{% url 'add_to_order' service.id %}">
+            <a href="/drone_service/{{ service.id }}/" class="details-btn">Подробнее</a>
+            <form method="post" action="{% url 'add_to_drone_order' service.id %}" style="display:inline;">
               {% csrf_token %}
               <button type="submit" class="add-btn">В заявку</button>
             </form>
           </div>
         </div>
       </div>
-      {% empty %}
-      <p>Режимов пока нет</p>
       {% endfor %}
     </div>
-  </div>
+  </div>  
 </main>
-
-{% if order_id %}
-<a href="{% url 'order_detail' order_id %}" class="fixed-order-btn">
-    Перейти к заявке ({{ order_items_count }})
-</a>
-{% else %}
-<a href="#" class="fixed-order-btn disabled-btn">
-    Перейти к заявке
-</a>
-{% endif %}
 
 </body>
 </html>

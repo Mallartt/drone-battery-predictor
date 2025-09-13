@@ -1,36 +1,17 @@
+/* styles.css */
 :root {
   --header: #ffffd2;       /* Шапка */
-  --background: #ffefdc;     /* Фон страницы */
-  --block: #ffffcc;           /* Карточки */
-  --text: #000000;            /* Основной текст */
+  --background: #ffefdc;   /* Фон страницы */
+  --block: #ffffcc;        /* Карточки */
+  --text: #000000;         /* Основной текст */
   --border: #999;          /* Граница блоков */
-  --button: #4cb050;          /* Цвет кнопок */
-  --button-text: #ffffff;     /* Текст на кнопках */
-  --header-text: #1F58C8;   /*Текст в хедере и заголовках*/
-  --hover: #45a049;      /* Цвет при наведении на кнопку */
+  --button: #4cb050;       /* Цвет кнопок */
+  --button-text: #ffffff;  /* Текст на кнопках */
+  --header-text: #1F58C8;  /* Текст в хедере и заголовках */
+  --hover: #45a049;        /* Цвет при наведении */
   --header-hover: #fb0707; /* Цвет при наведении на текст хедера */
 }
-.header-bar a:hover {
-  color: var(--header-hover);
-}
-.services-search button:hover {
-  background-color: var(--hover);
-}
-.details-btn:hover,
-.add-btn:hover,
-.calc-button:hover {
-  background-color: var(--hover);
-}
-header .home-button {
-  color: var(--header-text);
-  font-weight: 500;
-  font-size: 20px;
-}
 
-h1 {
-  color: var(--header-text);
-  font-weight: 500;
-}
 * {
   margin: 0;
   padding: 0;
@@ -41,6 +22,15 @@ body {
   font-family: Arial, sans-serif;
   font-weight: 600;
   background: var(--background);
+  color: var(--text);
+}
+
+h1 {
+  color: var(--header-text);
+  font-weight: 500;
+  text-align: center;
+  margin: 24px 0 16px;
+  font-size: 22px;
 }
 
 header {
@@ -48,31 +38,53 @@ header {
   color: var(--header-text);
   margin-bottom: 10px;
 }
-header + main {
-  margin-top: 10px;
-}
+
 .header-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 20px;
-  color: var(--header-text);
-}
-.order-page{
-  margin-bottom: 10px;
 }
 
 .header-bar a {
   text-decoration: none;
   transition: .2s;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--header-text);
 }
 
+.header-bar a:hover {
+  color: var(--header-hover);
+}
 
-main h1 {
+.order-icon-btn {
+  position: fixed;
+  top: 50px;
+  left: 20px;   
+  width: 90px;
   text-align: center;
-  margin: 24px 0 16px;
-  font-size: 22px;
+  z-index: 1000; 
 }
+
+.order-icon-btn img {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+}
+
+.order-counter {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: red;
+  color: white;
+  font-size: 14px;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-weight: bold;
+}
+
 
 .services-search {
   display: flex;
@@ -97,8 +109,8 @@ main h1 {
 
 .services-search input {
   flex: 1;
-  color: var(--text);
   background: var(--background);
+  color: var(--text);
 }
 
 .services-search button {
@@ -110,7 +122,21 @@ main h1 {
   transition: .2s;
 }
 
+.services-search button:hover {
+  background: var(--hover);
+}
 
+.services-wrapper {
+  width: 50%;
+  margin: 0 auto;
+  padding-bottom: 10px;
+}
+
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
 
 .service-card {
   background: var(--block);
@@ -119,9 +145,6 @@ main h1 {
   display: flex;
   flex-direction: column;
   transition: .2s;
-  max-width: 400px;
-  margin: auto;
-  height: 100%;
   width: 100%;
   color: var(--text);
 }
@@ -149,24 +172,24 @@ main h1 {
 }
 
 .service-title {
-  font-weight: sans-serif;
-  color: var(--text);
+  font-weight: bold;
+  font-size: 18px;
 }
 
 .category {
-  font-weight: sans-serif;
+  font-size: 16px;
   color: var(--text);
 }
 
 .card-buttons {
   display: flex;
   justify-content: space-between;
-  margin-top: 8px;
+  margin-top: auto;
+  gap: 10px;
+
 }
 
-.details-btn,
-.add-btn,
-.calc-button {
+.details-btn {
   padding: 8px 14px;
   border-radius: 6px;
   background: var(--button);
@@ -179,11 +202,9 @@ main h1 {
   font-size: 15px;
 }
 
-
-
-
-.right-btn { margin-left: auto; }
-.small-btn { font-size: 0.85rem; padding: 6px 12px; }
+.details-btn:hover {
+  background: var(--hover);
+}
 
 .detail-card {
   display: flex;
@@ -191,11 +212,9 @@ main h1 {
   gap: 16px;
   background: var(--block);
   padding: 16px;
-  margin-top: 8px;
   border-radius: 10px;
-  color: var(--text);
   border: 1px solid var(--border);
-  margin-bottom: 10px;
+  margin: 10px 10px;
 }
 
 .detail-image {
@@ -211,7 +230,6 @@ main h1 {
 .detail-image img {
   width: 100%;
   height: auto;
-  object-fit: cover;
 }
 
 .service-info {
@@ -221,10 +239,6 @@ main h1 {
   gap: 8px;
 }
 
-.service-info h1 {
-  margin-bottom: 8px;
-}
-
 .compact-block {
   background: var(--block);
   border: 1px solid var(--border);
@@ -232,8 +246,7 @@ main h1 {
   padding: 12px 16px;
   max-width: 400px;
   margin: 0 auto 20px;
-  color: var(--text);
-  font-weight: 600;
+
 }
 
 .drone-params-row {
@@ -243,7 +256,7 @@ main h1 {
 }
 
 .drone-menu input {
-  width: 60px;
+  width: 80px;
   padding: 4px 6px;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -254,146 +267,103 @@ main h1 {
   font-weight: 600;
 }
 
-
-.calc-button {
-  margin: 12px auto 0;
-  display: block;
-}
-
 .order-items-col {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 50%;
+  max-width: 70%;
   margin: 0 auto;
 }
-.trash-icon {
-  cursor: pointer;
-  background: none;
-  border: none;
-  font-size: 18px;
-  color: var(--text);
-  width: 28px;
-  height: 28px;
-}
-
-.trash-icon:hover { color: red; }
-
-.trash-icon img {
-  width: 28px !important;
-  height: 28px !important;
-  object-fit: contain;
-}
-
 
 .drone-card {
   display: flex;
-  gap: 12px;
   align-items: center;
+  gap: 15px;
   background: var(--block);
   padding: 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  color: var(--text);
 }
 
 .drone-card img {
-  width: 120px;
-  height: 120px;
+  width: 100px;
+  height: 100px;
   object-fit: cover;
   border-radius: 8px;
 }
-
+.drone-card input{
+  width: 50px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.drone-card label{
+  width: 120px;
+}
 .item-details {
+  flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
 }
 
-
-
+.item-details p {
+  width: 130px;
+}
 .runtime-block {
-  margin-left: auto;
-  background: #ffffff;
+  min-width: 100px;
+  text-align: right;
+  background: #fff;
   padding: 6px 12px;
   border-radius: 6px;
   font-weight: 600;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 80px;
-  height: 47.2px;
 }
 
-.services-wrapper {
-  width: 50%;
-  margin: 0 auto;
-  padding-bottom: 10px;
-}
-
-.services-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr); 
-  gap: 16px;
-  align-items: stretch; 
-}
-
-.fixed-order-btn {
-  position: fixed;
-  left: 20px;  
-  bottom: 20px;      
+.add-btn,
+.calc-button {
+  padding: 8px 14px;
+  border-radius: 6px;
   background: var(--button);
   color: var(--button-text);
-  padding: 12px 18px;
-  border-radius: 8px;
-  text-decoration: none;
   font-weight: 600;
-  z-index: 9999; 
-  transition: 0.2s;
+  cursor: pointer;
+  transition: .2s;
+  border: none;
+  font-size: 15px;
 }
 
-.fixed-order-btn:hover {
-  background-color: #45a049; 
+.add-btn:hover,
+.calc-button:hover {
+  background: var(--hover);
 }
 
-.drone-menu img {
-  width: 200px;
-  height: auto;
-  display: block;
-  margin: 0 auto 15px auto;
-  object-fit: contain;
+.drone-params-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
 }
-
-
-main.container {
-  margin: 0px 20px;
+.drone-params-cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-main.container.order-page {
-  margin: 0px 20px 10px 20px;
-}
-
-
-
-.delete-order-btn {
-  position: fixed;
-  left: 20px;  
-  bottom: 20px;      
-  border: 2px solid #dc3545;
-  color: #dc3545;
-  background-color: var(--background);
-  padding: 12px 18px;
-  border-radius: 8px;
-  text-decoration: none;
+.delete-btn {
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: none;
+  color: red;
   font-weight: 600;
-  z-index: 9999; 
-  transition: 0.2s;
+  cursor: pointer;
+  transition: .2s;
+  text-decoration: none;
+  border: 1px solid red;
+  font-size: 15px;
 }
-
-.delete-order-btn:hover {
-  background-color: #c62828; 
-  color: #ffffff;
+.order-page form {
+  text-align: center;
 }
-.inline {
-  display:inline;
+.delete-btn:hover {
+  background: red;
+  color: white;
 }

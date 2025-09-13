@@ -1,3 +1,4 @@
+# views.py
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
@@ -8,10 +9,10 @@ from .models import DroneMode, DroneOrder, DroneOrderItem
 
 TRASH = "http://localhost:9000/images/icons8-trash-50.jpg"
 dron_img = "http://localhost:9000/images/dron.jpg"
+drone_order = "http://localhost:9000/images/zayavka.jpg"
 
-
-def services_list(request):
-    search_query = request.GET.get("search", "")
+def drone_services(request):
+    search_query = request.GET.get("drone_services_search", "")
     services = DroneMode.objects.filter(is_deleted=False)
 
     if search_query:
@@ -28,17 +29,18 @@ def services_list(request):
 
     return render(
         request,
-        "services.html",
+        "drone_services.html",
         {
             "services": services,
             "order_items_count": order_items_count,
             "order_id": order.id if order else None,
             "search_query": search_query,
+            "drone_order": drone_order,
         },
     )
 
 
-def service_detail(request, id):
+def drone_service(request, id):
     service = get_object_or_404(DroneMode, id=id, is_deleted=False)
 
     order_items_count = 0
@@ -51,7 +53,7 @@ def service_detail(request, id):
 
     return render(
         request,
-        "service.html",
+        "drone_service.html",
         {
             "service": service,
             "order_items_count": order_items_count,
@@ -60,33 +62,27 @@ def service_detail(request, id):
 
 
 @login_required
-def order_detail(request, order_id):
+def drone_order_detail(request, order_id):
     order = get_object_or_404(DroneOrder, id=order_id, creator=request.user)
-
-
     order_items = order.items.select_related("mode")
 
-    drone_parameters = []
     drone_fields = [
-        "drone_weight",
-        "cargo_weight",
-        "battery_capacity",
-        "battery_voltage",
-        "efficiency",
-        "battery_remaining",
+        ("Вес дрона", "drone_weight"),
+        ("Вес груза", "cargo_weight"),
+        ("Ёмкость батареи", "battery_capacity"),
+        ("Напряжение батареи", "battery_voltage"),
+        ("Эффективность", "efficiency"),
+        ("Оставшийся заряд батареи", "battery_remaining"),
     ]
 
-    for field_name in drone_fields:
-        field = DroneOrder._meta.get_field(field_name)
+    drone_parameters = []
+    for label, field_name in drone_fields:
         value = getattr(order, field_name, None)
-        drone_parameters.append({
-            "label": field.verbose_name,
-            "value": value if value is not None else 0
-        })
+        drone_parameters.append((label, value if value is not None else 0))
 
     return render(
         request,
-        "order.html",
+        "drone_battery_order.html",
         {
             "order": order,
             "order_items": order_items,
@@ -98,8 +94,9 @@ def order_detail(request, order_id):
     )
 
 
+
 @login_required
-def add_to_order(request, service_id):
+def add_to_drone_order(request, service_id):
     if request.method != "POST":
         return HttpResponse("Метод не разрешён", status=405)
 
@@ -113,11 +110,11 @@ def add_to_order(request, service_id):
     if not created:
         item.save()
 
-    return redirect("services_list")
+    return redirect("drone_services")
 
 
 @login_required
-def delete_order(request, order_id):
+def delete_drone_order(request, order_id):
     if request.method != "POST":
         return HttpResponse("Метод не разрешён", status=405)
 
@@ -133,4 +130,4 @@ def delete_order(request, order_id):
         )
         transaction.commit()
 
-    return redirect("services_list")
+    return redirect("drone_services")

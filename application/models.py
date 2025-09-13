@@ -1,3 +1,4 @@
+# models.py
 from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
@@ -46,8 +47,9 @@ class DroneOrderItem(models.Model):
     order = models.ForeignKey(DroneOrder, on_delete=models.PROTECT, related_name="items")
     mode = models.ForeignKey(DroneMode, on_delete=models.PROTECT, related_name="orders")
     runtime = models.FloatField(null=True, blank=True)
-    wind_multiplier = models.FloatField(default=1.0)
-    rain_multiplier = models.FloatField(default=1.0)
+    wind_multiplier = models.FloatField(null=True, blank=True)
+    rain_multiplier = models.FloatField(null=True, blank=True)
+
 
     def __str__(self):
         return f"{self.mode.name} в заявке {self.order.id}"
