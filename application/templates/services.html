@@ -33,17 +33,18 @@
         </div>
         <div class="card-content">
           <p class="service-title">{{ service.name }}</p>
-          <p class="category">{{ service.description }}</p>
           <p class="category">Множитель мощности: {{ service.power_multiplier }}</p>
           <div class="card-buttons">
-            <a href="/service/{{ service.id }}/" class="details-btn">Подробнее</a>
-            <form class="inline" method="post" action="/order/add/{{ service.id }}/">
+            <a href="{% url 'service_detail' service.id %}" class="details-btn">Подробнее</a>
+            <form class="inline" method="post" action="{% url 'add_to_order' service.id %}">
               {% csrf_token %}
               <button type="submit" class="add-btn">В заявку</button>
             </form>
           </div>
         </div>
       </div>
+      {% empty %}
+      <p>Режимов пока нет</p>
       {% endfor %}
     </div>
   </div>
@@ -58,7 +59,6 @@
     Перейти к заявке
 </a>
 {% endif %}
-
 
 </body>
 </html>

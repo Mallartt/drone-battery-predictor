@@ -1,57 +1,56 @@
 from django.db import models
-from django.contrib.auth.models import User  # встроенная таблица пользователей
+from django.contrib.auth.models import User
+from django.contrib.postgres.fields import ArrayField
 
 
-class Service(models.Model):
-    name = models.CharField(max_length=255, verbose_name='Название')
-    description = models.TextField(verbose_name='Описание')
-    image = models.CharField(max_length=255, null=True, blank=True, verbose_name='Изображение')
-    power_multiplier = models.FloatField(verbose_name='Множитель мощности')
-    is_active = models.BooleanField(default=True)
+class DroneMode(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+    image = models.CharField(max_length=255, null=True, blank=True)
+    power_multiplier = models.FloatField(default=1.0)
+    is_deleted = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
 
 
-class Order(models.Model):
-    class OrderStatus(models.TextChoices):
+class DroneOrder(models.Model):
+    class Status(models.TextChoices):
         DRAFT = "DRAFT", "Черновик"
         DELETED = "DELETED", "Удалён"
         FORMED = "FORMED", "Сформирован"
         COMPLETED = "COMPLETED", "Завершён"
         REJECTED = "REJECTED", "Отклонён"
 
-    creator = models.ForeignKey(User, on_delete=models.PROTECT, default=1)
-    moderator = models.ForeignKey(User, on_delete=models.PROTECT, related_name="orders_moderated", null=True, blank=True)
-
-    status = models.CharField(
-        max_length=10,
-        choices=OrderStatus.choices,
-        default=OrderStatus.DRAFT,
-    )
-
-    creation_datetime = models.DateTimeField(auto_now_add=True)
-    formation_datetime = models.DateTimeField(blank=True, null=True)
-    completion_datetime = models.DateTimeField(blank=True, null=True)
-    drone_weight = models.FloatField(blank=True, null=True, verbose_name="Масса дрона (кг)")
-    cargo_weight = models.FloatField(blank=True, null=True, verbose_name="Масса груза (кг)")
-    battery_capacity = models.FloatField(blank=True, null=True, verbose_name="Ёмкость аккумулятора (mAh)")
-    battery_voltage = models.FloatField(blank=True, null=True, verbose_name="Напряжение батареи (V)")
-    efficiency = models.FloatField(blank=True, null=True, verbose_name="КПД")
-    battery_remaining = models.FloatField(blank=True, null=True, verbose_name="Остаток заряда (%)")
-
-    def __str__(self):
-        return f"Заявка № {self.id} ({self.status})"
-
-
-class OrderItem(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="items")
-    service = models.ForeignKey(Service, on_delete=models.PROTECT, related_name="orders")
-    runtime = models.FloatField(blank=True, null=True, verbose_name="Расчётное время (мин)")
-
     
+    creator = models.ForeignKey(User, on_delete=models.PROTECT)
+    moderator = models.ForeignKey(User, on_delete=models.PROTECT, related_name="orders_moderated", null=True, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    formed_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    drone_weight = models.FloatField(null=True, blank=True)
+    cargo_weight = models.FloatField(null=True, blank=True)
+    battery_capacity = models.FloatField(null=True, blank=True)
+    battery_voltage = models.FloatField(null=True, blank=True)
+    efficiency = models.FloatField(null=True, blank=True)
+    battery_remaining = models.FloatField(null=True, blank=True)
+
     def __str__(self):
-        return f"{self.service.name} в заявке № {self.order.id}"
+        return f"Заявка {self.id} ({self.status})"
+
+
+class DroneOrderItem(models.Model):
+    order = models.ForeignKey(DroneOrder, on_delete=models.PROTECT, related_name="items")
+    mode = models.ForeignKey(DroneMode, on_delete=models.PROTECT, related_name="orders")
+    runtime = models.FloatField(null=True, blank=True)
+    wind_multiplier = models.FloatField(default=1.0)
+    rain_multiplier = models.FloatField(default=1.0)
+
+    def __str__(self):
+        return f"{self.mode.name} в заявке {self.order.id}"
 
     class Meta:
-        unique_together = ('order', 'service')
+        unique_together = ("order", "mode")

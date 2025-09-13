@@ -1,7 +1,7 @@
 from django.contrib import admin
 
-from .models import Service, Order, OrderItem
+from .models import DroneMode, DroneOrder, DroneOrderItem
 
-admin.site.register(Service)
-admin.site.register(Order)
-admin.site.register(OrderItem)
+admin.site.register(DroneMode)
+admin.site.register(DroneOrder)
+admin.site.register(DroneOrderItem)

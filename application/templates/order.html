@@ -18,7 +18,6 @@
   <h1>Моя заявка на расчет времени полета</h1>  
 
   <aside class="drone-menu compact-block">
-    <img src="{{ dron_img }}" alt="Дрон">
 
     {% if drone_parameters %}
       {% for param in drone_parameters %}
@@ -38,11 +37,10 @@
     {% if order_items %}
       {% for item in order_items %}
       <div class="order-item drone-card">
-        <img src="{{ item.service.image }}" alt="{{ item.service.name }}">
+        <img src="{{ item.mode.image }}" alt="{{ item.mode.name }}">
         <div class="item-details">
-          <p>{{ item.service.name }}</p>
-          <p>{{ item.service.description }}</p>
-          <p>Множитель мощности: {{ item.service.power_multiplier }}</p>
+          <p>{{ item.mode.name }}</p>
+          <p>Множитель мощности: {{ item.mode.power_multiplier }}</p>
         </div>
         <div class="runtime-block">
           {% if item.runtime %}
@@ -58,6 +56,7 @@
       <p>Заявка пуста</p>
     {% endif %}
   </section>
+
 
   
   </div>
