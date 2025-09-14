@@ -67,7 +67,6 @@ def drone_order_detail(request, order_id):
     order = get_object_or_404(DroneOrder, id=order_id, creator=request.user)
     order_items = order.items.select_related("mode")
 
-    # Параметры дрона для отображения
     drone_fields = [
         ("Вес дрона", "drone_weight"),
         ("Вес груза", "cargo_weight"),
