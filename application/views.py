@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import connection, transaction
 
 from .models import DroneMode, DroneOrder, DroneOrderItem
+import math
 
 
 TRASH = "http://localhost:9000/images/icons8-trash-50.jpg"
@@ -66,6 +67,7 @@ def drone_order_detail(request, order_id):
     order = get_object_or_404(DroneOrder, id=order_id, creator=request.user)
     order_items = order.items.select_related("mode")
 
+    # Параметры дрона для отображения
     drone_fields = [
         ("Вес дрона", "drone_weight"),
         ("Вес груза", "cargo_weight"),
@@ -76,9 +78,34 @@ def drone_order_detail(request, order_id):
     ]
 
     drone_parameters = []
+    param_values = {}
     for label, field_name in drone_fields:
-        value = getattr(order, field_name, None)
-        drone_parameters.append((label, value if value is not None else 0))
+        value = getattr(order, field_name, 0) or 0 
+        drone_parameters.append((label, value))
+        param_values[field_name] = value
+
+    mass_drone = param_values["drone_weight"]
+    mass_payload = param_values["cargo_weight"]
+    battery_capacity_mAh = param_values["battery_capacity"]
+    battery_voltage = param_values["battery_voltage"]
+    efficiency = param_values["efficiency"]
+    battery_level_pct = param_values["battery_remaining"]
+
+    battery_level = battery_level_pct / 100
+    energy_Wh = battery_capacity_mAh * battery_voltage / 1000 * battery_level * efficiency
+
+    for item in order_items:
+        mode = item.mode
+
+        multiplier = getattr(mode, "power_multiplier", 1.0) or 1.0
+        wind_coeff = getattr(item, "wind_multiplier", 1.0) or 1.0
+        rain_coeff = getattr(item, "rain_multiplier", 1.0) or 1.0
+
+        total_mass = mass_drone + mass_payload
+
+        power_W = multiplier * math.pow(total_mass, 1.5) * wind_coeff * rain_coeff
+
+        item.runtime = int((energy_Wh / power_W) * 60) if power_W > 0 else 0
 
     return render(
         request,
@@ -92,6 +119,7 @@ def drone_order_detail(request, order_id):
             "trash": TRASH,
         },
     )
+
 
 
 
