@@ -44,8 +44,8 @@ class DroneBatteryOrder(models.Model):
 
 
 class DroneBatteryOrderItem(models.Model):
-    order = models.ForeignKey(DroneBatteryOrder, on_delete=models.PROTECT, related_name="items")
-    mode = models.ForeignKey(DroneService, on_delete=models.PROTECT, related_name="orders")
+    drone_order = models.ForeignKey(DroneBatteryOrder, on_delete=models.PROTECT, related_name="items")
+    drone_service = models.ForeignKey(DroneService, on_delete=models.PROTECT, related_name="orders")
     runtime = models.FloatField(null=True, blank=True)
     wind_multiplier = models.FloatField(null=True, blank=True)
     rain_multiplier = models.FloatField(null=True, blank=True)
@@ -55,4 +55,4 @@ class DroneBatteryOrderItem(models.Model):
         return f"{self.mode.name} в заявке {self.order.id}"
 
     class Meta:
-        unique_together = ("order", "mode")
+        unique_together = ("drone_order", "drone_service")

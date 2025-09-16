@@ -1,3 +1,6 @@
 from django.contrib import admin
+from .models import DroneService, DroneBatteryOrder, DroneBatteryOrderItem
 
-# Register your models here.
+admin.site.register(DroneService)
+admin.site.register(DroneBatteryOrder)
+admin.site.register(DroneBatteryOrderItem)
