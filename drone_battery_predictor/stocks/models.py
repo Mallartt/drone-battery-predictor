@@ -52,7 +52,8 @@ class DroneBatteryOrderItem(models.Model):
 
 
     def __str__(self):
-        return f"{self.mode.name} в заявке {self.order.id}"
+        return f"{self.drone_service.name} в заявке {self.drone_order.id}"
+
 
     class Meta:
         unique_together = ("drone_order", "drone_service")

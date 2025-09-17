@@ -1,38 +1,27 @@
 # views.py
-from rest_framework import generics, status, permissions
+from rest_framework import status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.db import transaction
-from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.authtoken.models import Token
-from .models import DroneService, DroneBatteryOrder, DroneBatteryOrderItem
 from django.contrib.auth.models import User
+from django.conf import settings
+from datetime import timedelta
+import boto3, uuid
+
+from .models import DroneService, DroneBatteryOrder, DroneBatteryOrderItem
 from .serializers import (
     DroneServiceSerializer,
     DroneOrderSerializer,
     DroneOrderItemSerializer,
-    UserRegisterSerializer,
-    UserSerializer
 )
-import boto3
-from django.conf import settings
-import uuid
-from datetime import timedelta
-from .minio import UploadDroneImage
 
 
 # --------------------------
 # Singleton-функция "фиксированного создателя"
 # --------------------------
 def get_fixed_creator():
-    """
-    Возвращает фиксированного пользователя-«создателя» с суперправами.
-    username='admin', password='admin', is_superuser=True, is_staff=True.
-    Если пользователь не существует — создаёт его.
-    """
     username = 'admin'
     password = 'admin'
     user, created = User.objects.get_or_create(username=username)
@@ -57,47 +46,59 @@ s3_client = boto3.client(
 # ----------------------
 # DRONE SERVICES
 # ----------------------
-class DroneServicesList(generics.ListCreateAPIView):
-    serializer_class = DroneServiceSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+class DroneServicesList(APIView):
+    permission_classes = [permissions.AllowAny]
 
-    def get_queryset(self):
+    def get(self, request):
         queryset = DroneService.objects.filter(is_deleted=False)
-        search = self.request.GET.get('drone_services_search')
+        search = request.GET.get('drone_services_search')
         if search:
             queryset = queryset.filter(name__icontains=search)
-        return queryset
+        serializer = DroneServiceSerializer(queryset, many=True)
+        return Response(serializer.data)
 
-    def perform_create(self, serializer):
+    def post(self, request):
+        serializer = DroneServiceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class DroneServiceDetail(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = DroneServiceSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    queryset = DroneService.objects.filter(is_deleted=False)
+class DroneServiceDetail(APIView):
+    permission_classes = [permissions.AllowAny]
 
-    def perform_destroy(self, instance):
-        if instance.image:
+    def get(self, request, pk):
+        service = get_object_or_404(DroneService, id=pk, is_deleted=False)
+        serializer = DroneServiceSerializer(service)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        service = get_object_or_404(DroneService, id=pk, is_deleted=False)
+        serializer = DroneServiceSerializer(service, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, pk):
+        service = get_object_or_404(DroneService, id=pk, is_deleted=False)
+        if service.image:
             try:
-                s3_client.delete_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=instance.image)
+                s3_client.delete_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=service.image)
             except Exception as e:
                 print(f"[views] Ошибка при удалении файла из MinIO: {e}")
-        instance.image = None
-        instance.is_deleted = True
-        instance.save(update_fields=['image', 'is_deleted'])
+        service.image = None
+        service.is_deleted = True
+        service.save(update_fields=['image', 'is_deleted'])
+        return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
 
-# ----------------------
-# ADD DRONE SERVICE TO ORDER (Черновик)
-# ----------------------
 class AddToDroneOrder(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request, pk):
         service = get_object_or_404(DroneService, id=pk, is_deleted=False)
         creator = get_fixed_creator()
-        order, created = DroneBatteryOrder.objects.get_or_create(
+        order, _ = DroneBatteryOrder.objects.get_or_create(
             creator=creator,
             status=DroneBatteryOrder.Status.DRAFT,
         )
@@ -106,11 +107,66 @@ class AddToDroneOrder(APIView):
         return Response({"order_id": order.id, "item": serializer.data})
 
 
+class UploadDroneImage(APIView):
+    """
+    Загрузка изображения для услуги.
+    POST /drone_services/<pk>/upload_image/
+    Старое изображение удаляется из MinIO (если есть).
+    Генерация уникального имени файла (uuid + исходное расширение).
+    Сохраняется полный URL в service.image.
+    """
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, pk):
+        service = get_object_or_404(DroneService, id=pk, is_deleted=False)
+        file_obj = request.data.get('image')
+        if not file_obj:
+            return Response({"error": "Нет файла"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Определяем расширение и генерируем уникальное имя
+        ext = file_obj.name.split('.')[-1] if '.' in file_obj.name else 'bin'
+        filename = f"{uuid.uuid4().hex}.{ext}"
+
+        # Определяем content_type
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(file_obj.name)
+        if not content_type:
+            content_type = 'application/octet-stream'
+
+        # Удаляем старое изображение (если было)
+        if service.image:
+            try:
+                old_key = service.image.split('/')[-1]  # берём имя файла
+                s3_client.delete_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=old_key)
+            except Exception as e:
+                print(f"[views] Ошибка при удалении старого файла: {e}")
+
+        # Загружаем новый файл
+        try:
+            s3_client.upload_fileobj(
+                file_obj,
+                settings.AWS_STORAGE_BUCKET_NAME,
+                filename,
+                ExtraArgs={'ContentType': content_type}
+            )
+        except Exception as e:
+            return Response({"error": f"Не удалось загрузить файл: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Сохраняем полный URL
+        protocol = "https" if getattr(settings, "MINIO_USE_SSL", False) else "http"
+        service.image = f"{protocol}://{settings.AWS_S3_ENDPOINT_URL}/{settings.AWS_STORAGE_BUCKET_NAME}/{filename}"
+        service.save(update_fields=['image'])
+
+        return Response({"image": service.image}, status=status.HTTP_200_OK)
+
+
+
 # ----------------------
 # DRONE ORDERS
 # ----------------------
 class DroneOrderBasketIcon(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request):
         creator = get_fixed_creator()
@@ -122,39 +178,42 @@ class DroneOrderBasketIcon(APIView):
         return Response({"order_id": order.id if order else None, "count": count})
 
 
-class DroneOrderList(generics.ListAPIView):
-    serializer_class = DroneOrderSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class DroneOrderList(APIView):
+    permission_classes = [permissions.AllowAny]
 
-    def get_queryset(self):
+    def get(self, request):
         qs = DroneBatteryOrder.objects.exclude(
             status__in=[DroneBatteryOrder.Status.DELETED, DroneBatteryOrder.Status.DRAFT]
         )
-        date_from = self.request.GET.get('date_from')
-        date_to = self.request.GET.get('date_to')
-        status_q = self.request.GET.get('status')
+        date_from = request.GET.get('date_from')
+        date_to = request.GET.get('date_to')
+        status_q = request.GET.get('status')
         if date_from:
             qs = qs.filter(formed_at__gte=date_from)
         if date_to:
             qs = qs.filter(formed_at__lte=date_to)
         if status_q:
             qs = qs.filter(status=status_q)
-        return qs.select_related('creator', 'moderator').prefetch_related('items__drone_service')
+        serializer = DroneOrderSerializer(qs, many=True)
+        return Response(serializer.data)
 
 
-class DroneOrderDetailView(generics.RetrieveAPIView):
-    serializer_class = DroneOrderSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    queryset = DroneBatteryOrder.objects.all()
+class DroneOrderDetailView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        order = get_object_or_404(DroneBatteryOrder, id=pk)
+        serializer = DroneOrderSerializer(order)
+        return Response(serializer.data)
 
 
 class DroneOrderUpdate(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def put(self, request, pk):
         order = get_object_or_404(DroneBatteryOrder, id=pk)
         creator = get_fixed_creator()
-        if order.creator != creator and not request.user.is_staff:
+        if order.creator != creator:
             return Response({"error": "Нет прав"}, status=status.HTTP_403_FORBIDDEN)
 
         forbidden = {'id', 'creator', 'moderator', 'status', 'created_at', 'formed_at', 'completed_at'}
@@ -169,7 +228,7 @@ class DroneOrderUpdate(APIView):
 
 
 class DroneOrderForm(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def put(self, request, pk):
         order = get_object_or_404(DroneBatteryOrder, id=pk)
@@ -191,7 +250,7 @@ class DroneOrderForm(APIView):
 
 
 class DroneOrderComplete(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [permissions.AllowAny]
 
     def put(self, request, pk):
         order = get_object_or_404(DroneBatteryOrder, id=pk)
@@ -201,7 +260,7 @@ class DroneOrderComplete(APIView):
         action = request.data.get('action')
         if action == 'complete':
             order.status = DroneBatteryOrder.Status.COMPLETED
-            order.moderator = request.user
+            order.moderator = get_fixed_creator()
             order.completed_at = timezone.now()
             computed_cost = sum((item.drone_service.power_multiplier * (item.runtime or 0) * 10) for item in order.items.all())
             delivery_date = timezone.now() + timedelta(days=30)
@@ -214,7 +273,7 @@ class DroneOrderComplete(APIView):
             }, status=status.HTTP_200_OK)
         elif action == 'reject':
             order.status = DroneBatteryOrder.Status.REJECTED
-            order.moderator = request.user
+            order.moderator = get_fixed_creator()
             order.completed_at = timezone.now()
             order.save()
             return Response({"status": "ok", "order_status": order.status}, status=status.HTTP_200_OK)
@@ -223,12 +282,12 @@ class DroneOrderComplete(APIView):
 
 
 class DroneOrderDelete(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def delete(self, request, pk):
         order = get_object_or_404(DroneBatteryOrder, id=pk)
         creator = get_fixed_creator()
-        if order.creator != creator and not request.user.is_staff:
+        if order.creator != creator:
             return Response({"error": "Нет прав"}, status=status.HTTP_403_FORBIDDEN)
         order.status = DroneBatteryOrder.Status.DELETED
         order.save()
@@ -239,12 +298,12 @@ class DroneOrderDelete(APIView):
 # DRONE ORDER ITEMS
 # ----------------------
 class DroneOrderItemUpdate(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def put(self, request, pk):
         item = get_object_or_404(DroneBatteryOrderItem, id=pk)
         creator = get_fixed_creator()
-        if item.drone_order.creator != creator and not request.user.is_staff:
+        if item.drone_order.creator != creator:
             return Response({"error": "Нет прав"}, status=status.HTTP_403_FORBIDDEN)
 
         forbidden = {'id', 'drone_order', 'drone_service'}
@@ -259,54 +318,50 @@ class DroneOrderItemUpdate(APIView):
 
 
 class DroneOrderItemDelete(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def delete(self, request, pk):
         item = get_object_or_404(DroneBatteryOrderItem, id=pk)
         creator = get_fixed_creator()
-        if item.drone_order.creator != creator and not request.user.is_staff:
+        if item.drone_order.creator != creator:
             return Response({"error": "Нет прав"}, status=status.HTTP_403_FORBIDDEN)
         item.delete()
         return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
 
 # ----------------------
-# USERS
+# USERS (заглушки)
 # ----------------------
 class UserRegister(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
-        serializer = UserRegisterSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({"status": "ok"}, status=status.HTTP_201_CREATED)
+        return Response({"message": "Регистрация недоступна (заглушка)"}, status=status.HTTP_200_OK)
 
 
 class UserDetail(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        serializer = UserSerializer(request.user)
-        return Response(serializer.data)
+        return Response({
+            "id": 1,
+            "username": "admin",
+            "password": "admin"
+        }, status=status.HTTP_200_OK)
 
     def put(self, request):
-        serializer = UserSerializer(request.user, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+        return Response({"message": "Обновление недоступно (заглушка)"}, status=status.HTTP_200_OK)
 
 
-class UserLogin(ObtainAuthToken):
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data['user']
-        token, created = Token.objects.get_or_create(user=user)
-        return Response({"token": token.key})
+class UserLogin(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        return Response({"token": "fake-token-123"}, status=status.HTTP_200_OK)
 
 
 class UserLogout(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        request.user.auth_token.delete()
-        return Response({"status": "ok"})
+        return Response({"message": "Выход выполнен (заглушка)"}, status=status.HTTP_200_OK)
