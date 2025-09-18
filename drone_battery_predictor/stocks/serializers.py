@@ -14,9 +14,7 @@ class DroneServiceSerializer(serializers.ModelSerializer):
 
 
 class DroneOrderItemSerializer(serializers.ModelSerializer):
-    # Вложенный объект услуги (для отображения)
     drone_service_detail = DroneServiceSerializer(source='drone_service', read_only=True)
-    # ID услуги для записи
     drone_service = serializers.PrimaryKeyRelatedField(
         queryset=DroneService.objects.filter(is_deleted=False)
     )
@@ -40,7 +38,6 @@ class DroneOrderItemSerializer(serializers.ModelSerializer):
 
 
     def update(self, instance, validated_data):
-        # Убираем вложенный объект, чтобы DRF не ругался
         validated_data.pop('drone_service', None)
         return super().update(instance, validated_data)
 

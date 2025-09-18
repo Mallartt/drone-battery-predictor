@@ -21,9 +21,6 @@ from .serializers import (
 )
 import math
 
-# --------------------------
-# Singleton-функция "фиксированного создателя"
-# --------------------------
 def get_fixed_creator():
     username = 'admin'
     password = 'admin'
@@ -36,7 +33,6 @@ def get_fixed_creator():
     return user
 
 
-# S3 client
 s3_client = boto3.client(
     's3',
     endpoint_url=f"http://{settings.AWS_S3_ENDPOINT_URL}",
@@ -46,9 +42,6 @@ s3_client = boto3.client(
 )
 
 
-# ----------------------
-# DRONE SERVICES
-# ----------------------
 class DroneServicesList(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -111,13 +104,6 @@ class AddToDroneOrder(APIView):
 
 
 class UploadDroneImage(APIView):
-    """
-    Загрузка изображения для услуги.
-    POST /drone_services/<pk>/upload_image/
-    Старое изображение удаляется из MinIO (если есть).
-    Генерация уникального имени файла (uuid + исходное расширение).
-    Сохраняется полный URL в service.image.
-    """
     parser_classes = [MultiPartParser, FormParser]
     permission_classes = [permissions.AllowAny]
 
@@ -127,25 +113,21 @@ class UploadDroneImage(APIView):
         if not file_obj:
             return Response({"error": "Нет файла"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Определяем расширение и генерируем уникальное имя
         ext = file_obj.name.split('.')[-1] if '.' in file_obj.name else 'bin'
         filename = f"{uuid.uuid4().hex}.{ext}"
 
-        # Определяем content_type
         import mimetypes
         content_type, _ = mimetypes.guess_type(file_obj.name)
         if not content_type:
             content_type = 'application/octet-stream'
 
-        # Удаляем старое изображение (если было)
         if service.image:
             try:
-                old_key = service.image.split('/')[-1]  # берём имя файла
+                old_key = service.image.split('/')[-1] 
                 s3_client.delete_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=old_key)
             except Exception as e:
                 print(f"[views] Ошибка при удалении старого файла: {e}")
 
-        # Загружаем новый файл
         try:
             s3_client.upload_fileobj(
                 file_obj,
@@ -156,7 +138,6 @@ class UploadDroneImage(APIView):
         except Exception as e:
             return Response({"error": f"Не удалось загрузить файл: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Сохраняем полный URL
         protocol = "https" if getattr(settings, "MINIO_USE_SSL", False) else "http"
         service.image = f"{protocol}://{settings.AWS_S3_ENDPOINT_URL}/{settings.AWS_STORAGE_BUCKET_NAME}/{filename}"
         service.save(update_fields=['image'])
@@ -165,9 +146,6 @@ class UploadDroneImage(APIView):
 
 
 
-# ----------------------
-# DRONE ORDERS
-# ----------------------
 class DroneOrderBasketIcon(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -268,7 +246,6 @@ class DroneOrderComplete(APIView):
         creator = get_fixed_creator()
 
         if action == 'complete':
-            # Получаем параметры дрона
             mass_drone = order.drone_weight or 0
             mass_payload = order.cargo_weight or 0
             battery_capacity_mAh = order.battery_capacity or 0
@@ -279,7 +256,6 @@ class DroneOrderComplete(APIView):
             battery_level = battery_level_pct / 100
             energy_Wh = battery_capacity_mAh * battery_voltage / 1000 * battery_level * efficiency
 
-            # Обновляем runtime для каждого элемента заказа
             for item in order.items.all():
                 multiplier = getattr(item.drone_service, "power_multiplier", 1.0) or 1.0
                 wind_coeff = getattr(item, "wind_multiplier", 1.0) or 1.0
@@ -290,7 +266,6 @@ class DroneOrderComplete(APIView):
                 item.runtime = round((energy_Wh / power_W) * 60) if power_W > 0 else 0
                 item.save()
 
-            # Вычисляем стоимость
             delivery_date = timezone.now() + timedelta(days=30)
 
             order.status = DroneBatteryOrder.Status.COMPLETED
@@ -324,9 +299,6 @@ class DroneOrderDelete(APIView):
         return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
 
-# ----------------------
-# DRONE ORDER ITEMS
-# ----------------------
 class DroneOrderItemUpdate(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -338,7 +310,7 @@ class DroneOrderItemUpdate(APIView):
 
         serializer = DroneOrderItemSerializer(item, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()  # здесь drone_order и drone_service будут применены
+        serializer.save()
         return Response(serializer.data)
 
 
@@ -355,9 +327,6 @@ class DroneOrderItemDelete(APIView):
         return Response({"status": "ok"}, status=status.HTTP_200_OK)
 
 
-# ----------------------
-# USERS (заглушки)
-# ----------------------
 class UserRegister(APIView):
     def post(self, request):
         serializer = UserRegisterSerializer(data=request.data)
