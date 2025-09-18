@@ -9,14 +9,17 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from datetime import timedelta
 import boto3, uuid
-
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.authtoken.models import Token  
 from .models import DroneService, DroneBatteryOrder, DroneBatteryOrderItem
 from .serializers import (
     DroneServiceSerializer,
     DroneOrderSerializer,
     DroneOrderItemSerializer,
+    UserRegisterSerializer,
+    UserSerializer      
 )
-
+import math
 
 # --------------------------
 # Singleton-функция "фиксированного создателя"
@@ -254,33 +257,60 @@ class DroneOrderComplete(APIView):
 
     def put(self, request, pk):
         order = get_object_or_404(DroneBatteryOrder, id=pk)
+        
         if order.status != DroneBatteryOrder.Status.FORMED:
             return Response({"error": "Можно обрабатывать только сформированную заявку"}, status=status.HTTP_400_BAD_REQUEST)
 
         action = request.data.get('action')
+        if action not in ['complete', 'reject']:
+            return Response({"error": "Неверное действие"}, status=status.HTTP_400_BAD_REQUEST)
+
+        creator = get_fixed_creator()
+
         if action == 'complete':
-            order.status = DroneBatteryOrder.Status.COMPLETED
-            order.moderator = get_fixed_creator()
-            order.completed_at = timezone.now()
-            computed_cost = sum((item.drone_service.power_multiplier * (item.runtime or 0) * 10) for item in order.items.all())
+            # Получаем параметры дрона
+            mass_drone = order.drone_weight or 0
+            mass_payload = order.cargo_weight or 0
+            battery_capacity_mAh = order.battery_capacity or 0
+            battery_voltage = order.battery_voltage or 0
+            efficiency = order.efficiency or 1.0
+            battery_level_pct = order.battery_remaining or 0
+
+            battery_level = battery_level_pct / 100
+            energy_Wh = battery_capacity_mAh * battery_voltage / 1000 * battery_level * efficiency
+
+            # Обновляем runtime для каждого элемента заказа
+            for item in order.items.all():
+                multiplier = getattr(item.drone_service, "power_multiplier", 1.0) or 1.0
+                wind_coeff = getattr(item, "wind_multiplier", 1.0) or 1.0
+                rain_coeff = getattr(item, "rain_multiplier", 1.0) or 1.0
+
+                total_mass = mass_drone + mass_payload
+                power_W = multiplier * math.pow(total_mass, 1.5) * wind_coeff * rain_coeff
+                item.runtime = round((energy_Wh / power_W) * 60) if power_W > 0 else 0
+                item.save()
+
+            # Вычисляем стоимость
             delivery_date = timezone.now() + timedelta(days=30)
+
+            order.status = DroneBatteryOrder.Status.COMPLETED
+            order.moderator = creator
+            order.completed_at = timezone.now()
             order.save()
+
             return Response({
                 "status": "ok",
                 "order_status": order.status,
-                "computed_cost": computed_cost,
                 "delivery_date": delivery_date
             }, status=status.HTTP_200_OK)
+
         elif action == 'reject':
             order.status = DroneBatteryOrder.Status.REJECTED
-            order.moderator = get_fixed_creator()
+            order.moderator = creator
             order.completed_at = timezone.now()
             order.save()
             return Response({"status": "ok", "order_status": order.status}, status=status.HTTP_200_OK)
-        else:
-            return Response({"error": "Неверное действие"}, status=status.HTTP_400_BAD_REQUEST)
-
-
+        
 class DroneOrderDelete(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -306,15 +336,11 @@ class DroneOrderItemUpdate(APIView):
         if item.drone_order.creator != creator:
             return Response({"error": "Нет прав"}, status=status.HTTP_403_FORBIDDEN)
 
-        forbidden = {'id', 'drone_order', 'drone_service'}
-        for field, value in request.data.items():
-            if field in forbidden:
-                continue
-            if hasattr(item, field):
-                setattr(item, field, value)
-        item.save()
-        serializer = DroneOrderItemSerializer(item)
+        serializer = DroneOrderItemSerializer(item, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()  # здесь drone_order и drone_service будут применены
         return Response(serializer.data)
+
 
 
 class DroneOrderItemDelete(APIView):
@@ -333,35 +359,52 @@ class DroneOrderItemDelete(APIView):
 # USERS (заглушки)
 # ----------------------
 class UserRegister(APIView):
-    permission_classes = [permissions.AllowAny]
-
     def post(self, request):
-        return Response({"message": "Регистрация недоступна (заглушка)"}, status=status.HTTP_200_OK)
+        serializer = UserRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"status": "ok"}, status=status.HTTP_201_CREATED)
+
+
+
+CURRENT_USER = None
+
+
+class UserLogin(ObtainAuthToken):
+    def post(self, request, *args, **kwargs):
+        global CURRENT_USER
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        token, created = Token.objects.get_or_create(user=user)
+        CURRENT_USER = user
+        return Response({"status": "ok"})
 
 
 class UserDetail(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        return Response({
-            "id": 1,
-            "username": "admin",
-            "password": "admin"
-        }, status=status.HTTP_200_OK)
+        global CURRENT_USER
+        if not CURRENT_USER:
+            return Response({"error": "Нет активного пользователя"}, status=401)
+        serializer = UserSerializer(CURRENT_USER)
+        return Response(serializer.data)
 
     def put(self, request):
-        return Response({"message": "Обновление недоступно (заглушка)"}, status=status.HTTP_200_OK)
-
-
-class UserLogin(APIView):
-    permission_classes = [permissions.AllowAny]
-
-    def post(self, request):
-        return Response({"token": "fake-token-123"}, status=status.HTTP_200_OK)
+        global CURRENT_USER
+        if not CURRENT_USER:
+            return Response({"error": "Нет активного пользователя"}, status=401)
+        serializer = UserSerializer(CURRENT_USER, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class UserLogout(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        return Response({"message": "Выход выполнен (заглушка)"}, status=status.HTTP_200_OK)
+        global CURRENT_USER
+        CURRENT_USER = None
+        return Response({"status": "ok"})

@@ -14,24 +14,38 @@ class DroneServiceSerializer(serializers.ModelSerializer):
 
 
 class DroneOrderItemSerializer(serializers.ModelSerializer):
-    drone_service = DroneServiceSerializer(read_only=True)
-    drone_service_id = serializers.PrimaryKeyRelatedField(source='drone_service', queryset=DroneService.objects.filter(is_deleted=False), write_only=True, required=False)
+    # Вложенный объект услуги (для отображения)
+    drone_service_detail = DroneServiceSerializer(source='drone_service', read_only=True)
+    # ID услуги для записи
+    drone_service = serializers.PrimaryKeyRelatedField(
+        queryset=DroneService.objects.filter(is_deleted=False)
+    )
+
+    drone_order = serializers.PrimaryKeyRelatedField(
+        queryset=DroneBatteryOrder.objects.all()
+    )
 
     class Meta:
         model = DroneBatteryOrderItem
         fields = [
             'id',
+            'drone_order',
             'drone_service',
-            'drone_service_id',
+            'drone_service_detail',
             'runtime',
             'wind_multiplier',
             'rain_multiplier',
         ]
-        read_only_fields = ['id', 'drone_service']
+        read_only_fields = ['id', 'drone_service_detail']
+
 
     def update(self, instance, validated_data):
+        # Убираем вложенный объект, чтобы DRF не ругался
         validated_data.pop('drone_service', None)
         return super().update(instance, validated_data)
+
+
+
 
 
 class DroneOrderSerializer(serializers.ModelSerializer):
