@@ -184,6 +184,8 @@ class DroneOrderDetailView(APIView):
 
     def get(self, request, pk):
         order = get_object_or_404(DroneBatteryOrder, id=pk)
+        if order.status == DroneBatteryOrder.Status.DELETED:
+            return Response({"error": "Заявка не найдена"})
         serializer = DroneOrderSerializer(order)
         return Response(serializer.data)
 
