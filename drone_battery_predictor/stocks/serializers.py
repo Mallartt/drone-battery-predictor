@@ -1,15 +1,16 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from django.conf import settings
 from .models import DroneService, DroneBatteryOrder, DroneBatteryOrderItem
 
 class DroneServiceSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = DroneService
         fields = ['id', 'name', 'description', 'power_multiplier', 'image']
-        read_only_fields = ['id']
-    def get_image_url(self, obj):
+        read_only_fields = ['id', 'image']
+
+    def get_image(self, obj):
         return obj.image if obj.image else None
 
 
@@ -18,7 +19,6 @@ class DroneOrderItemSerializer(serializers.ModelSerializer):
     drone_service = serializers.PrimaryKeyRelatedField(
         queryset=DroneService.objects.filter(is_deleted=False)
     )
-
     drone_order = serializers.PrimaryKeyRelatedField(
         queryset=DroneBatteryOrder.objects.all()
     )
@@ -36,13 +36,9 @@ class DroneOrderItemSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'drone_service_detail']
 
-
     def update(self, instance, validated_data):
         validated_data.pop('drone_service', None)
         return super().update(instance, validated_data)
-
-
-
 
 
 class DroneOrderSerializer(serializers.ModelSerializer):
@@ -87,3 +83,8 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'email', 'first_name', 'last_name']
+
+
+class UserLoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField()

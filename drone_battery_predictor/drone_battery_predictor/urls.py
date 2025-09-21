@@ -1,7 +1,20 @@
 # urls.py
-from django.urls import path
+from django.urls import path, re_path
 from stocks import views
 from django.contrib import admin
+from rest_framework import permissions as drf_permissions
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+
+schema_view = get_schema_view(
+   openapi.Info(
+      title="Drone Battery Predictor API",
+      default_version='v1',
+      description="API для заявок на расчёт времени полёта дрона",
+   ),
+   public=True,
+   permission_classes=(drf_permissions.AllowAny,),
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -26,4 +39,8 @@ urlpatterns = [
     path('drone_users/me/', views.UserDetail.as_view(), name='drone-user-me'),
     path('drone_users/login/', views.UserLogin.as_view(), name='drone-user-login'),
     path('drone_users/logout/', views.UserLogout.as_view(), name='drone-user-logout'),
+
+    re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]
