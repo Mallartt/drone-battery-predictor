@@ -265,13 +265,12 @@ class DroneOrderComplete(APIView):
                 power_W = multiplier * math.pow(total_mass, 1.5) * wind_coeff * rain_coeff
                 item.runtime = round((energy_Wh / power_W) * 60) if power_W > 0 else 0
                 item.save()
-            delivery_date = timezone.now() + timedelta(days=30)
             order.status = DroneBatteryOrder.Status.COMPLETED
             order.moderator = moderator
             order.completed_at = timezone.now()
             order.save()
             return Response(
-                {"status": "ok", "order_status": order.status, "delivery_date": delivery_date},
+                {"status": "ok", "order_status": order.status},
                 status=status.HTTP_200_OK
             )
         else:
