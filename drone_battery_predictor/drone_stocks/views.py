@@ -345,7 +345,7 @@ class UserLogin(APIView):
         django_login(request, user)
         token, _ = Token.objects.get_or_create(user=user)
         return Response(
-            {"status": "ok",  "username": user.username},
+            {"status": "ok", "username": user.username, "token": token.key},
             status=status.HTTP_200_OK
         )
 
