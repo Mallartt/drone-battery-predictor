@@ -32,6 +32,9 @@ from .serializers import (
     UserLoginSerializer
 )
 from .permissions import IsModerator, ReadOnlyIfAnonymous
+import secrets
+
+ASYNC_SECRET_KEY = "ABC123XYZ" 
 
 minio_protocol = "https" if getattr(settings, "MINIO_USE_SSL", False) else "http"
 S3_ENDPOINT = getattr(settings, "AWS_S3_ENDPOINT_URL", "localhost:9000")
@@ -270,6 +273,9 @@ class DroneOrderForm(APIView):
         for f in required_fields:
             if getattr(order, f, None) is None:
                 return Response({"error": f"Не заполнено поле {f}"}, status=status.HTTP_400_BAD_REQUEST)
+        if not order.calculated_result or order.calculated_result == "FAIL":
+            return Response({"error": "Предварительный результат ещё не готов"}, status=status.HTTP_400_BAD_REQUEST)
+
         order.status = DroneBatteryOrder.Status.FORMED
         order.formed_at = timezone.now()
         order.save()
@@ -434,3 +440,30 @@ class UserLogout(APIView):
         response = Response({"status": "ok"})
         response.delete_cookie("csrftoken")
         return response
+    
+@method_decorator(csrf_exempt, name="dispatch")
+class DroneOrderCalculationStatus(APIView):
+    authentication_classes = []
+    permission_classes = [drf_permissions.AllowAny]
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "key": openapi.Schema(type=openapi.TYPE_STRING),
+                "result": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+            required=["key", "result"],
+        )
+    )
+    def post(self, request, pk):
+        key = request.data.get("key")
+        if key != ASYNC_SECRET_KEY:
+            return Response({"error": f"Неверный ключ"}, status=status.HTTP_403_FORBIDDEN)
+
+        result = request.data.get("result")
+        order = get_object_or_404(DroneBatteryOrder, id=pk)
+        order.calculated_result = result
+        #order.status = DroneBatteryOrder.Status.COMPLETED
+        order.save(update_fields=["calculated_result", "status"])
+        return Response({"status": "ok", "result": result})

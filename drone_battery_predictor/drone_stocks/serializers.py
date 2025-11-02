@@ -62,7 +62,8 @@ class DroneOrderSerializer(serializers.ModelSerializer):
             'battery_capacity',
             'battery_voltage',
             'efficiency',
-            'battery_remaining'
+            'battery_remaining',
+            'calculated_result'
         ]
         read_only_fields = ['id', 'creator', 'moderator', 'status', 'created_at', 'formed_at', 'completed_at']
 

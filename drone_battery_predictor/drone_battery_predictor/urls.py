@@ -31,6 +31,7 @@ urlpatterns = [
     path('api/drone_orders/<int:pk>/form/', views.DroneOrderForm.as_view(), name='drone-order-form'),
     path('api/drone_orders/<int:pk>/complete/', views.DroneOrderComplete.as_view(), name='drone-order-complete'),
     path('api/drone_orders/<int:pk>/delete/', views.DroneOrderDelete.as_view(), name='drone-order-delete'),
+    path('api/drone_orders/<int:pk>/calculated_result/', views.DroneOrderCalculationStatus.as_view(), name='drone-order-external-result'),
 
     path('api/drone_items/<int:pk>/update/', views.DroneOrderItemUpdate.as_view(), name='drone-item-update'),
     path('api/drone_items/<int:pk>/delete/', views.DroneOrderItemDelete.as_view(), name='drone-item-delete'),
