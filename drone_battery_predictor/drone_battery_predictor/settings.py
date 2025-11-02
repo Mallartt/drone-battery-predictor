@@ -20,19 +20,23 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'drf_yasg',
     'drone_stocks',
+    "corsheaders",
+    "django_extensions",
+    
 ]
 
-# --- Middleware ---
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",  
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+CORS_ALLOW_ALL_ORIGINS = True
 ROOT_URLCONF = 'drone_battery_predictor.urls'
 
 TEMPLATES = [
@@ -112,6 +116,8 @@ SESSION_CACHE_ALIAS = "default"
 AWS_STORAGE_BUCKET_NAME = 'images'
 AWS_ACCESS_KEY_ID = 'root'
 AWS_SECRET_ACCESS_KEY = 'rootroot'
-AWS_S3_ENDPOINT_URL = "http://minio:9000"  # ✅ контейнерный hostname
+AWS_S3_ENDPOINT_URL = "localhost:9000"  # для boto3
+AWS_S3_PUBLIC_URL = "http://localhost:9000"  # для браузера
+
 MINIO_USE_SSL = False
 

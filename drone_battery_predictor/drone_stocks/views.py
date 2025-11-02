@@ -8,10 +8,19 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from datetime import timedelta
 import boto3, uuid, mimetypes, math
-
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
+from rest_framework.exceptions import AuthenticationFailed
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from django.contrib.auth import authenticate, login as django_login, logout as django_logout
 from rest_framework.authtoken.models import Token
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission
+from rest_framework.exceptions import AuthenticationFailed
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 
 from .models import DroneService, DroneBatteryOrder, DroneBatteryOrderItem
 from .serializers import (
@@ -26,13 +35,18 @@ from .permissions import IsModerator, ReadOnlyIfAnonymous
 
 minio_protocol = "https" if getattr(settings, "MINIO_USE_SSL", False) else "http"
 S3_ENDPOINT = getattr(settings, "AWS_S3_ENDPOINT_URL", "localhost:9000")
+endpoint_url = f"{minio_protocol}://{S3_ENDPOINT}"
+
 s3_client = boto3.client(
-    's3',
-    endpoint_url=f"{minio_protocol}://{S3_ENDPOINT}",
+    "s3",
+    endpoint_url=endpoint_url,
     aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
     aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-    region_name='us-east-1',
+    region_name="us-east-1",
 )
+
+
+
 
 class DroneServicesList(APIView):
     permission_classes = [ReadOnlyIfAnonymous]
@@ -55,38 +69,44 @@ class DroneServicesList(APIView):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-
+@method_decorator(csrf_exempt, name="dispatch")
 class DroneServiceDetail(APIView):
-    permission_classes = [ReadOnlyIfAnonymous]
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
+    permission_classes = [drf_permissions.AllowAny]
+    
+    def get_object(self, pk):
+        return get_object_or_404(DroneService, pk=pk)
 
     def get(self, request, pk):
-        service = get_object_or_404(DroneService, id=pk, is_deleted=False)
+        service = self.get_object(pk)
         serializer = DroneServiceSerializer(service)
         return Response(serializer.data)
 
     def put(self, request, pk):
-        service = get_object_or_404(DroneService, id=pk, is_deleted=False)
+        # теперь user будет настоящим
         if not request.user.is_authenticated or not request.user.is_staff:
-            return Response({"error": "Только модератор может редактировать"}, status=status.HTTP_403_FORBIDDEN)
-        serializer = DroneServiceSerializer(service, data=request.data, partial=True)
+            return Response(
+                {"error": "Только модератор может редактировать"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        service = self.get_object(pk)
+        serializer = DroneServiceSerializer(service, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
 
     def delete(self, request, pk):
-        service = get_object_or_404(DroneService, id=pk, is_deleted=False)
         if not request.user.is_authenticated or not request.user.is_staff:
-            return Response({"error": "Только модератор может удалять"}, status=status.HTTP_403_FORBIDDEN)
-        if service.image:
-            try:
-                old_key = service.image.split('/')[-1]
-                s3_client.delete_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=old_key)
-            except Exception as e:
-                print(f"[views] Ошибка при удалении файла из MinIO: {e}")
-        service.image = None
-        service.is_deleted = True
-        service.save(update_fields=['image', 'is_deleted'])
-        return Response({"status": "ok"}, status=status.HTTP_200_OK)
+            return Response(
+                {"error": "Только модератор может удалять"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        service = self.get_object(pk)
+        service.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 
 class AddToDroneOrder(APIView):
@@ -113,53 +133,72 @@ class UploadDroneImage(APIView):
 
     def post(self, request, pk):
         if not request.user.is_authenticated or not request.user.is_staff:
-            return Response({"error": "Только модератор может загружать изображения"}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Только модератор может загружать изображения"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         service = get_object_or_404(DroneService, id=pk, is_deleted=False)
-        file_obj = request.data.get('image')
+        file_obj = request.data.get("image")
         if not file_obj:
             return Response({"error": "Нет файла"}, status=status.HTTP_400_BAD_REQUEST)
 
-        ext = file_obj.name.split('.')[-1] if '.' in file_obj.name else 'bin'
+        ext = file_obj.name.split(".")[-1] if "." in file_obj.name else "bin"
         filename = f"{uuid.uuid4().hex}.{ext}"
 
         content_type, _ = mimetypes.guess_type(file_obj.name)
         if not content_type:
-            content_type = 'application/octet-stream'
+            content_type = "application/octet-stream"
 
         if service.image:
             try:
-                old_key = service.image.split('/')[-1]
-                s3_client.delete_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=old_key)
+                old_key = service.image.split("/")[-1]
+                s3_client.delete_object(
+                    Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+                    Key=old_key,
+                )
             except Exception as e:
-                print(f"[views] Ошибка при удалении старого файла: {e}")
+                print(f"[UploadDroneImage] Ошибка при удалении старого файла: {e}")
 
         try:
             s3_client.upload_fileobj(
                 file_obj,
                 settings.AWS_STORAGE_BUCKET_NAME,
                 filename,
-                ExtraArgs={'ContentType': content_type}
+                ExtraArgs={"ContentType": content_type},
             )
         except Exception as e:
-            return Response({"error": f"Не удалось загрузить файл: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": f"Не удалось загрузить файл: {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-        service.image = f"{minio_protocol}://{S3_ENDPOINT}/{settings.AWS_STORAGE_BUCKET_NAME}/{filename}"
-        service.save(update_fields=['image'])
-        return Response({"image": service.image}, status=status.HTTP_200_OK)
+        public_url = f"{settings.AWS_S3_PUBLIC_URL}/{settings.AWS_STORAGE_BUCKET_NAME}/{filename}"
+        service.image = public_url
+        service.save(update_fields=["image"])
+
+        return Response({"image": public_url}, status=status.HTTP_200_OK)
+
 
 
 class DroneOrderBasketIcon(APIView):
-    permission_classes = [drf_permissions.AllowAny]
-
     def get(self, request):
-        if request.user.is_authenticated:
-            order = DroneBatteryOrder.objects.filter(creator=request.user, status=DroneBatteryOrder.Status.DRAFT).first()
-            count = order.items.count() if order else 0
-            return Response({"order_id": order.id if order else None, "count": count})
-        else:
-            return Response({"order_id": None, "count": 0})
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {"error": "Неавторизованный пользователь"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
-
+        order = DroneBatteryOrder.objects.filter(
+            creator=request.user,
+            status=DroneBatteryOrder.Status.DRAFT
+        ).first()
+        count = order.items.count() if order else 0
+        return Response({
+            "order_id": order.id if order else None,
+            "count": count
+        })
+    
 class DroneOrderList(APIView):
     permission_classes = [drf_permissions.IsAuthenticated]
 
@@ -239,7 +278,20 @@ class DroneOrderForm(APIView):
 
 class DroneOrderComplete(APIView):
     permission_classes = [IsModerator]
-
+    @swagger_auto_schema(
+            request_body=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'action': openapi.Schema(
+                        type=openapi.TYPE_STRING,
+                        description="Действие над заявкой: 'complete' или 'reject'",
+                        enum=['complete', 'reject']
+                    ),
+                },
+                required=['action'],
+            ),
+            responses={200: "OK"},
+        )
     def put(self, request, pk):
         order = get_object_or_404(DroneBatteryOrder, id=pk)
         if order.status != DroneBatteryOrder.Status.FORMED:
@@ -295,7 +347,7 @@ class DroneOrderDelete(APIView):
 
 class DroneOrderItemUpdate(APIView):
     permission_classes = [drf_permissions.IsAuthenticated]
-
+    @swagger_auto_schema(request_body=DroneOrderItemSerializer)
     def put(self, request, pk):
         item = get_object_or_404(DroneBatteryOrderItem, id=pk)
         if item.drone_order.creator != request.user and not request.user.is_staff:
