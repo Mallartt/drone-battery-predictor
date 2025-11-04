@@ -121,3 +121,6 @@ AWS_S3_PUBLIC_URL = "http://localhost:9000"  # для браузера
 
 MINIO_USE_SSL = False
 
+# settings.py (добавить)
+ASYNC_SERVICE_URL = "http://127.0.0.1:8080/process"   # URL Go-сервиса
+ASYNC_SECRET_KEY = "ABC123XYZ"  # тот же ключ что и в views.py (у тебя уже есть ASYNC_SECRET_KEY в views.py, согласуй)

@@ -45,6 +45,7 @@ class DroneOrderSerializer(serializers.ModelSerializer):
     items = DroneOrderItemSerializer(many=True, read_only=True)
     creator = serializers.CharField(source='creator.username', read_only=True)
     moderator = serializers.CharField(source='moderator.username', read_only=True)
+    processed_items_count = serializers.SerializerMethodField()
 
     class Meta:
         model = DroneBatteryOrder
@@ -63,10 +64,12 @@ class DroneOrderSerializer(serializers.ModelSerializer):
             'battery_voltage',
             'efficiency',
             'battery_remaining',
-            'calculated_result'
+            'processed_items_count',
         ]
-        read_only_fields = ['id', 'creator', 'moderator', 'status', 'created_at', 'formed_at', 'completed_at']
+        read_only_fields = ['id', 'creator', 'moderator', 'status', 'created_at', 'formed_at', 'completed_at', 'processed_items_count']
 
+    def get_processed_items_count(self, obj):
+        return obj.items.filter(runtime__isnull=False).count()
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)

@@ -38,7 +38,6 @@ class DroneBatteryOrder(models.Model):
     battery_voltage = models.FloatField(null=True, blank=True)
     efficiency = models.FloatField(null=True, blank=True)
     battery_remaining = models.FloatField(null=True, blank=True)
-    calculated_result = models.CharField(max_length=255, null=True, blank=True)
     
     def __str__(self):
         return f"Заявка {self.id} ({self.status})"

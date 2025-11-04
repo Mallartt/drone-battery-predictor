@@ -33,6 +33,9 @@ from .serializers import (
 )
 from .permissions import IsModerator, ReadOnlyIfAnonymous
 import secrets
+from rest_framework.permissions import AllowAny
+from rest_framework.parsers import JSONParser
+
 
 ASYNC_SECRET_KEY = "ABC123XYZ" 
 
@@ -273,39 +276,49 @@ class DroneOrderForm(APIView):
         for f in required_fields:
             if getattr(order, f, None) is None:
                 return Response({"error": f"Не заполнено поле {f}"}, status=status.HTTP_400_BAD_REQUEST)
-        if not order.calculated_result or order.calculated_result == "FAIL":
-            return Response({"error": "Предварительный результат ещё не готов"}, status=status.HTTP_400_BAD_REQUEST)
-
+        
         order.status = DroneBatteryOrder.Status.FORMED
         order.formed_at = timezone.now()
         order.save()
         return Response({"status": "ok", "formed_at": order.formed_at}, status=status.HTTP_200_OK)
 
 
+import threading, requests, json, math
+from django.conf import settings
+
 class DroneOrderComplete(APIView):
     permission_classes = [IsModerator]
+
     @swagger_auto_schema(
-            request_body=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    'action': openapi.Schema(
-                        type=openapi.TYPE_STRING,
-                        description="Действие над заявкой: 'complete' или 'reject'",
-                        enum=['complete', 'reject']
-                    ),
-                },
-                required=['action'],
-            ),
-            responses={200: "OK"},
-        )
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'action': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Действие над заявкой: 'complete' или 'reject'",
+                    enum=['complete', 'reject']
+                ),
+            },
+            required=['action'],
+        ),
+        responses={200: "OK"},
+    )
     def put(self, request, pk):
         order = get_object_or_404(DroneBatteryOrder, id=pk)
+
         if order.status != DroneBatteryOrder.Status.FORMED:
-            return Response({"error": "Можно обрабатывать только сформированную заявку"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Можно обрабатывать только сформированную заявку"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         action = request.data.get('action')
         if action not in ['complete', 'reject']:
             return Response({"error": "Неверное действие"}, status=status.HTTP_400_BAD_REQUEST)
+
         moderator = request.user
+
+        # === ЕСЛИ ЗАЯВКА ПРИНЯТА К РАСЧЁТУ ===
         if action == 'complete':
             mass_drone = order.drone_weight or 0
             mass_payload = order.cargo_weight or 0
@@ -315,28 +328,49 @@ class DroneOrderComplete(APIView):
             battery_level_pct = order.battery_remaining or 0
             battery_level = battery_level_pct / 100
             energy_Wh = battery_capacity_mAh * battery_voltage / 1000 * battery_level * efficiency
-            for item in order.items.all():
-                multiplier = getattr(item.drone_service, "power_multiplier", 1.0) or 1.0
-                wind_coeff = getattr(item, "wind_multiplier", 1.0) or 1.0
-                rain_coeff = getattr(item, "rain_multiplier", 1.0) or 1.0
-                total_mass = mass_drone + mass_payload
-                power_W = multiplier * math.pow(total_mass, 1.5) * wind_coeff * rain_coeff
-                item.runtime = round((energy_Wh / power_W) * 60) if power_W > 0 else 0
-                item.save()
+
             order.status = DroneBatteryOrder.Status.COMPLETED
             order.moderator = moderator
             order.completed_at = timezone.now()
-            order.save()
+            order.save(update_fields=["status", "moderator", "completed_at"])
+
+            url = getattr(settings, "ASYNC_SERVICE_URL", "http://127.0.0.1:8080/api/drone_process")
+            secret_key = getattr(settings, "ASYNC_SECRET_KEY", "ABC123XYZ")
+
+            def send_async(item):
+                payload = {
+                    "secret_key": secret_key,
+                    "order_id": order.id,
+                    "item_id": item.id,
+                    "mass_drone": mass_drone,
+                    "mass_payload": mass_payload,
+                    "battery_energy_Wh": energy_Wh,
+                    "multiplier": getattr(item.drone_service, "power_multiplier", 1.0) or 1.0,
+                    "wind_coeff": getattr(item, "wind_multiplier", 1.0) or 1.0,
+                    "rain_coeff": getattr(item, "rain_multiplier", 1.0) or 1.0,
+                }
+                try:
+                    requests.post(url, json=payload, timeout=10)
+                except Exception as e:
+                    print(f"[async error] item {item.id}: {e}")
+
+            for item in order.items.all():
+                threading.Thread(target=send_async, args=(item,), daemon=True).start()
+
             return Response(
-                {"status": "ok", "order_status": order.status},
-                status=status.HTTP_200_OK
+                {"status": "ok", "message": "Расчёт запущен асинхронно"},
+                status=status.HTTP_202_ACCEPTED,
             )
+
         else:
             order.status = DroneBatteryOrder.Status.REJECTED
             order.moderator = moderator
             order.completed_at = timezone.now()
-            order.save()
-            return Response({"status": "ok", "order_status": order.status}, status=status.HTTP_200_OK)
+            order.save(update_fields=["status", "moderator", "completed_at"])
+            return Response(
+                {"status": "ok", "order_status": order.status},
+                status=status.HTTP_200_OK,
+            )
 
 
 class DroneOrderDelete(APIView):
@@ -441,29 +475,28 @@ class UserLogout(APIView):
         response.delete_cookie("csrftoken")
         return response
     
-@method_decorator(csrf_exempt, name="dispatch")
-class DroneOrderCalculationStatus(APIView):
-    authentication_classes = []
-    permission_classes = [drf_permissions.AllowAny]
+class DroneAsyncResultReceiver(APIView):
+    
+    permission_classes = [AllowAny]
+    parser_classes = [JSONParser]
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "key": openapi.Schema(type=openapi.TYPE_STRING),
-                "result": openapi.Schema(type=openapi.TYPE_STRING),
-            },
-            required=["key", "result"],
-        )
-    )
-    def post(self, request, pk):
-        key = request.data.get("key")
-        if key != ASYNC_SECRET_KEY:
-            return Response({"error": f"Неверный ключ"}, status=status.HTTP_403_FORBIDDEN)
+    def post(self, request):
+        secret = request.data.get("secret_key")
+        if secret != ASYNC_SECRET_KEY:
+            return Response({"error": "Invalid secret"}, status=status.HTTP_403_FORBIDDEN)
 
-        result = request.data.get("result")
-        order = get_object_or_404(DroneBatteryOrder, id=pk)
-        order.calculated_result = result
-        #order.status = DroneBatteryOrder.Status.COMPLETED
-        order.save(update_fields=["calculated_result", "status"])
-        return Response({"status": "ok", "result": result})
+        order_id = request.data.get("order_id")
+        item_id = request.data.get("item_id")
+        runtime = request.data.get("runtime")
+
+        if order_id is None or item_id is None:
+            return Response({"error": "Missing order_id or item_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            item = DroneBatteryOrderItem.objects.get(id=item_id, drone_order__id=order_id)
+        except DroneBatteryOrderItem.DoesNotExist:
+            return Response({"error": "Item not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        item.runtime = runtime
+        item.save(update_fields=["runtime"])
+        return Response({"status": "ok"}, status=status.HTTP_200_OK)
